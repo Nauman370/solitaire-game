@@ -91,10 +91,12 @@ def col_x(col):
 
 def draw_type(suit,cx,cy,r,color):
     if type=="Diamond":
-        pygame.draw.polygon(screen,color,[(cx,cy-r),(cx+int(r*0.75),cy)])
+        pygame.draw.polygon(screen,color,[(cx,cy-r),(cx+int(r*0.75),cy),(cx,cy+r),(cx-int(r*0.75),cy)])
+
 
 
     elif type=="Hearts":
+        pygame.draw.circle
 
 
 

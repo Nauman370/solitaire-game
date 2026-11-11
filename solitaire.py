@@ -1,6 +1,6 @@
 import random
 import pygame
-Types=["Diamond","Hearts","Clubs","Spades"]
+Type=["Diamond","Hearts","Clubs","Spades"]
 Ranks=list(range(1,14))
 
 
@@ -10,9 +10,9 @@ def rank_label(rank):
 
 
 class Cards:
-    def __init__(self,Ranks,Types):
+    def __init__(self,Ranks,Type):
         self.rank=Ranks
-        self.type=Types
+        self.type=Type
         self.face_up=False
 
 
@@ -74,4 +74,37 @@ print(len(stock))
 CARD_W,CARD_H=80,120
 GAP=20
 MARGIN=20
-WIDTH=MARGIN*2+7*
+WIDTH=MARGIN*2+7*CARD_W+6*GAP
+HEIGHT=720
+TOP_Y: 20
+TABLEU_Y: 170
+DOWN_STE:14
+UP_STEP:30
+
+pygame.init()
+screen=pygame.display.set_mode((WIDTH,HEIGHT))
+pygame.display.set_caption("Solitaire")
+font=pygame.font.SysFont(None,30)
+
+def col_x(col):
+    return MARGIN + col*(CARD_W+GAP)
+
+def draw_type(suit,cx,cy,r,color):
+    if type=="Diamond":
+        pygame.draw.polygon(screen,color,[(cx,cy-r),(cx+int(r*0.75),cy)])
+
+
+    elif type=="Hearts":
+
+
+
+
+
+    elif type=="Clubs":
+
+
+
+
+
+    elif type="Spades":
+    

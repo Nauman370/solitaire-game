@@ -17,7 +17,7 @@ class Cards:
 
 
     def color(self):
-        if self.rank in ("Diamond","Hearts"):
+        if self.type in ("Diamond","Hearts"):
             return "red"
         else:
             return "black"
@@ -76,10 +76,10 @@ GAP=20
 MARGIN=20
 WIDTH=MARGIN*2+7*CARD_W+6*GAP
 HEIGHT=720
-TOP_Y: 20
-TABLEU_Y: 170
-DOWN_STE:14
-UP_STEP:30
+TOP_Y=20
+TABLEU_Y= 170
+DOWN_STEP=14
+UP_STEP=30
 
 pygame.init()
 screen=pygame.display.set_mode((WIDTH,HEIGHT))
@@ -89,7 +89,7 @@ font=pygame.font.SysFont(None,30)
 def col_x(col):
     return MARGIN + col*(CARD_W+GAP)
 
-def draw_type(suit,cx,cy,r,color):
+def draw_type(type,cx,cy,r,color):
     if type=="Diamond":
         pygame.draw.polygon(screen,color,[(cx,cy-r),(cx+int(r*0.75),cy),(cx,cy+r),(cx-int(r*0.75),cy)])
 
@@ -98,16 +98,71 @@ def draw_type(suit,cx,cy,r,color):
     elif type=="Hearts":
         pygame.draw.circle(screen,color,(cx-r//2,cy-r//4),r//2+1)
         pygame.draw.circle(screen,color,(cx+r//2,cy-r//4),r//2+1)
-        pygame.draw.polygon(screen,color[(cx-r,cy-r//8),(cx+r,cy-r//8),(cx,cy+r)])
+        pygame.draw.polygon(screen,color,[(cx-r,cy-r//8),(cx+r,cy-r//8),(cx,cy+r)])
     elif type=="Spades":
-        pygame.draw.circle(screen,color(cx-r//2,cy-r//4),r//2+1)
-        pygame.draw.circle(screen,color,(cx+r//2,cx-r//4),r//2+1)
-        pygame.draw.polygon(screen,color[(cx-r,cy-r//8),(cx+r,cy-r//8),cx,cy+r])
-        pygame.draw.polygon(screen,color[(cx,cy+r//4),(cx-r//3,cy+r),(cx+r//3,cy+r)])
+        pygame.draw.circle(screen,color,(cx-r//2,cy-r//4),r//2+1)
+        pygame.draw.circle(screen,color,(cx+r//2,cy-r//4),r//2+1)
+        pygame.draw.polygon(screen,color,[(cx-r,cy+r//8),(cx+r,cy+r//8),cx,cy-r])
+        pygame.draw.polygon(screen,color,[(cx,cy+r//4),(cx-r//3,cy+r),(cx+r//3,cy+r)])
     else:
-        for dx,dy in ((0,-r//2),(-r//2,r//6)),(r//2,r//6):
+         
+         for dx, dy in ((0, -r // 2), (-r // 2, r // 6), (r // 2, r // 6)):
             pygame.draw.circle(screen,color,(cx+dx,cy+dy),r//2)
-        pygame.draw.polygon(screen,color[(cx-cy),(cx-r//3,cy+r),(cx+r//3,cy+r)])
+            pygame.draw.polygon(screen,color,[(cx-cy),(cx-r//3,cy+r),(cx+r//3,cy+r)])
 
-def draw_card
+def draw_card(card,x,y):
+    rect=pygame.Rect(x,y,CARD_W,CARD_H)
+    if card.face_up:
+        color=(200,30,30) if card.color()=="red" else (20,20,20)
+        pygame.draw.rect(screen,(250,250,245),rect,border_radius=8)
+        pygame.draw.rect(screen,(60,60,60),rect, 2, border_radius=8)
+        screen.blit(font.render(rank_label(card.rank),True,color),(x+8,y+6))
+        draw_type(card.type,x + CARD_W-18, y+18,9,color)
+        draw_type(card.type,x +CARD_W//2,y+CARD_H//2+10,20,color)
+    else:
+        pygame.draw.rect(screen,(40,70,160),rect,border_radius=8)
+        pygame.draw.rect(screen,(230,230,240),rect.inflate(-14,-14),2,border_radius=6)
+def draw_slot(x,y):
+    pygame.draw.rect(screen,(18,85,45),(x,y,CARD_W,CARD_H),2,border_radius=8)
+def draw_table():
+    screen.fill((20,110,60))
+    if stock:
+        draw_card(stock[-1],col_x(0),TOP_Y)
+    else:
+        draw_slot(col_x(0),TOP_Y)
+    if waste:
+        draw_card(waste[-1],col_x(1),TOP_Y)
+    else:
+        draw_slot(col_x(1),TOP_Y)
+    for i,pile in enumerate(foundations):
+        if pile:
+            draw_card(pile[-1],col_x(3+i),TOP_Y)
+        else:
+            draw_slot(col_x(3+i),TOP_Y)
+    for col,pile in enumerate(tableu):
+        x=col_x(col)
+        y=TABLEU_Y
+        if not pile:
+            draw_slot(x,y)
+        for card in pile:
+            draw_card(card,x,y)
+            if card.face_up:
+                y+=UP_STEP
+            else:
+
+                y+=DOWN_STEP
+clock=pygame.time.Clock()
+running=True
+while running:
+    for event in pygame.event.get():
+        if event.type ==pygame.QUIT:
+            running=False
+    draw_table()
+    pygame.display.flip()
+    clock.tick(60)
+pygame.quit()
+
+
+
+    
     

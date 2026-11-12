@@ -25,7 +25,7 @@ class Cards:
         return rank_label(self.rank)+self.type[0].upper()
 def deck_cards():
     deck=[]
-    for type in Types:
+    for type in Type:
         for rank in Ranks:
             deck.append(Cards(rank,type))
     return deck
@@ -96,17 +96,18 @@ def draw_type(suit,cx,cy,r,color):
 
 
     elif type=="Hearts":
-        pygame.draw.circle
+        pygame.draw.circle(screen,color,(cx-r//2,cy-r//4),r//2+1)
+        pygame.draw.circle(screen,color,(cx+r//2,cy-r//4),r//2+1)
+        pygame.draw.polygon(screen,color[(cx-r,cy-r//8),(cx+r,cy-r//8),(cx,cy+r)])
+    elif type=="Spades":
+        pygame.draw.circle(screen,color(cx-r//2,cy-r//4),r//2+1)
+        pygame.draw.circle(screen,color,(cx+r//2,cx-r//4),r//2+1)
+        pygame.draw.polygon(screen,color[(cx-r,cy-r//8),(cx+r,cy-r//8),cx,cy+r])
+        pygame.draw.polygon(screen,color[(cx,cy+r//4),(cx-r//3,cy+r),(cx+r//3,cy+r)])
+    else:
+        for dx,dy in ((0,-r//2),(-r//2,r//6)),(r//2,r//6):
+            pygame.draw.circle(screen,color,(cx+dx,cy+dy),r//2)
+        pygame.draw.polygon(screen,color[(cx-cy),(cx-r//3,cy+r),(cx+r//3,cy+r)])
 
-
-
-
-
-    elif type=="Clubs":
-
-
-
-
-
-    elif type="Spades":
+def card_deck
     

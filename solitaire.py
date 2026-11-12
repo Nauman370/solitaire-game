@@ -109,5 +109,5 @@ def draw_type(suit,cx,cy,r,color):
             pygame.draw.circle(screen,color,(cx+dx,cy+dy),r//2)
         pygame.draw.polygon(screen,color[(cx-cy),(cx-r//3,cy+r),(cx+r//3,cy+r)])
 
-def card_deck
+def draw_card
     

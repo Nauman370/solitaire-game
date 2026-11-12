@@ -5,7 +5,7 @@ Ranks=list(range(1,14))
 
 
 def rank_label(rank):
-    return {1:"Ace",11:"Jack",12:"Queen",13:"King"}.get(rank,str(rank))
+    return {1:"A",11:"J",12:"Q",13:"K"}.get(rank,str(rank))
 
 
 
@@ -100,16 +100,17 @@ def draw_type(type,cx,cy,r,color):
         pygame.draw.circle(screen,color,(cx+r//2,cy-r//4),r//2+1)
         pygame.draw.polygon(screen,color,[(cx-r,cy-r//8),(cx+r,cy-r//8),(cx,cy+r)])
     elif type=="Spades":
-        pygame.draw.circle(screen,color,(cx-r//2,cy-r//4),r//2+1)
-        pygame.draw.circle(screen,color,(cx+r//2,cy-r//4),r//2+1)
-        pygame.draw.polygon(screen,color,[(cx-r,cy+r//8),(cx+r,cy+r//8),cx,cy-r])
+        pygame.draw.circle(screen, color, (cx - r// 2, cy+r// 4),r //2 + 1)
+        pygame.draw.circle(screen, color, (cx + r// 2, cy+r// 4),r//2 + 1)
+        pygame.draw.polygon(screen,color,[(cx-r,cy+r//8),(cx+r,cy+r//8),(cx,cy-r)])
         pygame.draw.polygon(screen,color,[(cx,cy+r//4),(cx-r//3,cy+r),(cx+r//3,cy+r)])
     else:
-         
-         for dx, dy in ((0, -r // 2), (-r // 2, r // 6), (r // 2, r // 6)):
-            pygame.draw.circle(screen,color,(cx+dx,cy+dy),r//2)
-            pygame.draw.polygon(screen,color,[(cx-cy),(cx-r//3,cy+r),(cx+r//3,cy+r)])
 
+                  
+        for dx, dy in ((0, -r // 2), (-r // 2, r // 6), (r // 2, r // 6)):
+
+            pygame.draw.circle(screen,color,(cx+dx,cy+dy),r//2)
+        pygame.draw.polygon(screen,color,[(cx,cy),(cx-r//3,cy+r),(cx+r//3,cy+r)])
 def draw_card(card,x,y):
     rect=pygame.Rect(x,y,CARD_W,CARD_H)
     if card.face_up:

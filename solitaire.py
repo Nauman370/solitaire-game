@@ -114,6 +114,14 @@ def column_at(pos):
         if col_x(col)<=mx<=col_x(col)+CARD_W:
             return col
     return None
+def foundation_at(pos):
+    mx,my=pos
+    if not (TOP_Y<=my<=TOP_Y + CARD_H):
+        return None
+    for i in range(4):
+        if col_x(3+i)<=mx<=col_x(3+i)+CARD_W:
+            return i
+    return None
 def stock_drawing():
     if stock:
         card=stock.pop()
@@ -121,7 +129,7 @@ def stock_drawing():
         waste.append(card)
     else:
         while waste:
-            card=waste.pop
+            card=waste.pop()
             card.face_up=False
             stock.append(card)
 
@@ -189,10 +197,10 @@ def draw_table():
     if selected:
         col,index=selected
         pile=tableu[col]
-        if waste_sel and waste:
-            pygame.draw.rect(screen,(255,215,0),(col_x(1),TOP_Y,CARD_W,CARD_H),3,border_radius=8)
         for i in range(index,len(pile)):
             pygame.draw.rect(screen,(255,215,0), (col_x(col),card_y(pile,i),CARD_W,CARD_H) , 3,border_radius=8)
+    if waste_sel and waste:
+        pygame.draw.rect(screen,(255,215,0),(col_x(1),TOP_Y,CARD_W,CARD_H),3,border_radius=8)  
 clock=pygame.time.Clock()
 running=True
 while running:
@@ -202,12 +210,37 @@ while running:
         if event.type==pygame.MOUSEBUTTONDOWN and event.button==1:
 
             if pygame.Rect(col_x(0), TOP_Y,CARD_W,CARD_H).collidepoint(event.pos):
-
                 stock_drawing()
+                selected=None
+                waste_sel=False
+                continue
+            if pygame.Rect(col_x(1),TOP_Y,CARD_W,CARD_H).collidepoint(event.pos):
+                if waste:
+                    waste_sel=not waste_sel
+                    selected=None
+                continue
+            f=foundation_at(event.pos)
+            if f is not None:
+                if waste_sel and plac_on_foundations(waste[-1],foundations[f]):
+                    foundations[f].append(waste.pop())
+                    waste_sel=False
+                    continue
+                if selected is not None:
+                    src_col,src_index=selected
+                    if src_index==len(tableu[src_col])-1 and plac_on_foundations(tableu[src_col][src_index],foundations[f]):
+                        card_moving(tableu[src_col], src_index,foundations[f])
+                        selected=None
+                        continue
+                waste_sel=False
                 selected=None
                 continue
 
             target=column_at(event.pos)
+            if waste_sel and target is not None and place_on_tableu(waste[-1],tableu[target]):
+                tableu[target].append(waste.pop())
+                waste_sel=False
+                continue
+            waste_sel=False
             moved=False
             if selected is not None and target is not None and target!=selected[0]:
                 src_col,src_index=selected

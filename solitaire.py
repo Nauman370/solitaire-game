@@ -189,6 +189,8 @@ def draw_table():
     if selected:
         col,index=selected
         pile=tableu[col]
+        if waste_sel and waste:
+            pygame.draw.rect(screen,(255,215,0),(col_x(1),TOP_Y,CARD_W,CARD_H),3,border_radius=8)
         for i in range(index,len(pile)):
             pygame.draw.rect(screen,(255,215,0), (col_x(col),card_y(pile,i),CARD_W,CARD_H) , 3,border_radius=8)
 clock=pygame.time.Clock()

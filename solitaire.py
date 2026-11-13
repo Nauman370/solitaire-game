@@ -88,13 +88,47 @@ font=pygame.font.SysFont(None,30)
 
 def col_x(col):
     return MARGIN + col*(CARD_W+GAP)
+selected=None
+waste_sel=None
+def card_y(pile,index):
+    y=TABLEU_Y
+    for card in pile[:index]:
+        y+=UP_STEP if card.face_up else DOWN_STEP
+    return y
+def tableu_hit(pos):
+    mx,my=pos
+    for col,pile in enumerate(tableu):
+        x=col_x(col)
+        if not(x<=mx<=x+CARD_W):
+            continue
+        for index in range(len(pile)-1,-1,-1):
+            top=card_y(pile,index)
+            if top<=my<=top+CARD_H:
+                return col,index
+    return None
+def column_at(pos):
+    mx,my=pos
+    if my<TABLEU_Y:
+        return None
+    for col in range(7):
+        if col_x(col)<=mx<=col_x(col)+CARD_W:
+            return col
+    return None
+def stock_drawing():
+    if stock:
+        card=stock.pop()
+        card.face_up=True
+        waste.append(card)
+    else:
+        while waste:
+            card=waste.pop
+            card.face_up=False
+            stock.append(card)
+
 
 def draw_type(type,cx,cy,r,color):
     if type=="Diamond":
         pygame.draw.polygon(screen,color,[(cx,cy-r),(cx+int(r*0.75),cy),(cx,cy+r),(cx-int(r*0.75),cy)])
-
-
-
     elif type=="Hearts":
         pygame.draw.circle(screen,color,(cx-r//2,cy-r//4),r//2+1)
         pygame.draw.circle(screen,color,(cx+r//2,cy-r//4),r//2+1)
@@ -152,12 +186,45 @@ def draw_table():
             else:
 
                 y+=DOWN_STEP
+    if selected:
+        col,index=selected
+        pile=tableu[col]
+        for i in range(index,len(pile)):
+            pygame.draw.rect(screen,(255,215,0), (col_x(col),card_y(pile,i),CARD_W,CARD_H) , 3,border_radius=8)
 clock=pygame.time.Clock()
 running=True
 while running:
     for event in pygame.event.get():
         if event.type ==pygame.QUIT:
             running=False
+        if event.type==pygame.MOUSEBUTTONDOWN and event.button==1:
+
+            if pygame.Rect(col_x(0), TOP_Y,CARD_W,CARD_H).collidepoint(event.pos):
+
+                stock_drawing()
+                selected=None
+                continue
+
+            target=column_at(event.pos)
+            moved=False
+            if selected is not None and target is not None and target!=selected[0]:
+                src_col,src_index=selected
+                moving_card=tableu[src_col][src_index]
+                if place_on_tableu(moving_card,tableu[target]):
+                    card_moving(tableu[src_col],src_index,tableu[target])
+                    selected=None
+                    moved=True
+            if not moved:
+
+                hit=tableu_hit(event.pos)
+                if hit is not None:
+                    col,index=hit
+                    if tableu[col][index].face_up:
+                     selected=hit
+                    else:
+                        selected=None
+                else:
+                    selected=None
     draw_table()
     pygame.display.flip()
     clock.tick(60)

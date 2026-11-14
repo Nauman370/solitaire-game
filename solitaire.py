@@ -1,8 +1,13 @@
+from datetime import date
 import random
+import os
+import json
 import pygame
 import copy
 Type=["Diamond","Hearts","Clubs","Spades"]
 Ranks=list(range(1,14))
+Save_file=os.path.join(os.path.expanduser("~"),"solitaire-save.json")
+
 
 
 def rank_label(rank):
@@ -76,8 +81,49 @@ def new_game():
     waste_sel=False
     won=False
 new_game()
+message=""
+message_timer=0
+def set_message(text):
+    global message, message_timer
+    message= text
+    message_timer=120
 
+def card_data(card):
+    return[card.rank,card.type,card.face_up]
+def data_to_card(d):
+    card=Cards(d[0],d[1])
+    card.face_up=d[2]
+    return card
 
+def save_game():
+    data = {
+        "tableu": [[card_data(c) for c in pile] for pile in tableu],
+        "stock": [card_data(c) for c in stock],
+        "waste": [card_data(c) for c in waste],
+        "foundations": [[card_data(c) for c in pile] for pile in foundations],
+    }
+
+    with open(Save_file,"w")as f:
+        json.dump(data,f)
+    set_message("Game saved")
+def load_game():
+    global tableu,stock,waste,foundations,selected,waste_sel,won
+    try:
+        with open(Save_file) as f:
+            data=json.load(f)
+        new_tableu=[[data_to_card(d)for d in pile]for pile in data["tableu"]]
+        new_stock=[data_to_card(d)for d in data["stock"]]
+        new_waste=[data_to_card(d)for d in data["waste"]]
+        new_foundations=[[data_to_card(d)for d in pile]for pile in data["foundations"]]
+    except (OSError,IndexError,ValueError,KeyError,TypeError):
+        set_message("No saves")
+        return
+    tableu,waste,stock,foundations= new_tableu,new_waste,new_stock,new_foundations
+    selected=None
+    waste_sel=False
+    won=False
+    history.clear()
+    set_message("game loaded")
 
 CARD_W,CARD_H=80,120
 GAP=20
@@ -90,15 +136,21 @@ DOWN_STEP=14
 UP_STEP=30
 
 pygame.init()
-screen=pygame.display.set_mode((WIDTH,HEIGHT))
+screen=pygame.display.set_mode((WIDTH,HEIGHT),pygame.SCALED|pygame.RESIZABLE)
 pygame.display.set_caption("Solitaire")
 font=pygame.font.SysFont(None,30)
 win_font=pygame.font.SysFont(None,72)
+small_font=pygame.font.SysFont(None,26)
+
+show_controls=True
+BAR_H=100
+BAR_Y=HEIGHT-BAR_H
+BTN_W,BTN_H=150,34
+buttons=[("Undo","undo"),("New game","new",),("Save","save"),("Load","load")]
+KEYS={pygame.K_z:"undo",pygame.K_n:"new",pygame.K_s:"save",pygame.K_l:"load"}
 
 def col_x(col):
     return MARGIN + col*(CARD_W+GAP)
-selected=None
-waste_sel=None
 def card_y(pile,index):
     y=TABLEU_Y
     for card in pile[:index]:
@@ -164,9 +216,7 @@ def draw_type(type,cx,cy,r,color):
         pygame.draw.circle(screen, color, (cx + r// 2, cy+r// 4),r//2 + 1)
         pygame.draw.polygon(screen,color,[(cx-r,cy+r//8),(cx+r,cy+r//8),(cx,cy-r)])
         pygame.draw.polygon(screen,color,[(cx,cy+r//4),(cx-r//3,cy+r),(cx+r//3,cy+r)])
-    else:
-
-                  
+    else:        
         for dx, dy in ((0, -r // 2), (-r // 2, r // 6), (r // 2, r // 6)):
 
             pygame.draw.circle(screen,color,(cx+dx,cy+dy),r//2)
@@ -187,6 +237,35 @@ def draw_card(card,x,y):
 
 def draw_slot(x,y):
     pygame.draw.rect(screen,(18,85,45),(x,y,CARD_W,CARD_H),2,border_radius=8)
+
+def button_rect(i):
+    return pygame.Rect(30+i*(BTN_W+20),BAR_Y+56,BTN_W,BTN_H)
+def do_action(action):
+    if action=="undo":
+        undo()
+    elif action=="new":
+        new_game()
+    elif action=="save":
+        save_game()
+    elif action=="load":
+        load_game()
+def draw_bar():
+    if not show_controls:
+        return
+    strip=pygame.Surface((WIDTH,BAR_H))
+    strip.set_alpha(190)
+    strip.fill((0,0,0))
+    screen.blit(strip,(0,BAR_Y))
+    line=small_font.render("Press Z for Undo  Press N for new game  Press S to save  Press L to load H to make this box go away",True,(230,230,230))
+    screen.blit(line,(WIDTH//2-line.get_width()//2,BAR_Y+10))
+    for i,(label,action)in enumerate(buttons):
+        r=button_rect(i)
+        hover=r.collidepoint(pygame.mouse.get_pos())
+        pygame.draw.rect(screen,(70,120,90)if hover else(40,100,65),r,border_radius=8)
+        pygame.draw.rect(screen,(230,230,240),r,2,border_radius=8)
+        text=font.render(label,True,(255,255,255))
+        screen.blit(text,(r.centerx-text.get_width()//2,r.centery-text.get_height()//2))
+
 
 def draw_table():
     screen.fill((20,110,60))
@@ -232,17 +311,29 @@ def draw_table():
         screen.blit(text,(WIDTH//2-text.get_width()//2,HEIGHT//2-60))
         hint=font.render("For a New game, Press N",True,(255,255,200))
         screen.blit(hint,(WIDTH//2-hint.get_width()//2,HEIGHT//2+10))
+    if message_timer>0:
+        msg=font.render(message,True,(255,255,200))
+        screen.blit(msg,(WIDTH//2-msg.get_width()//2,146))
+
 clock=pygame.time.Clock()
 running=True
 while running:
     for event in pygame.event.get():
-        if event.type==pygame.KEYDOWN and event.key==pygame.K_n:
-            new_game()
-        if event.type==pygame.KEYDOWN and event.key==pygame.K_z:
-            undo()
+        if event.type==pygame.KEYDOWN:
+            if event.key in KEYS:
+                do_action(KEYS[event.key])
+            elif event.key==pygame.K_h:
+                show_controls=not show_controls
+            elif event.key==pygame.K_F11:
+                pygame.display.toggle_fullscreen()
         if event.type ==pygame.QUIT:
             running=False
         if event.type==pygame.MOUSEBUTTONDOWN and event.button==1:
+            if show_controls and event.pos[1]>= BAR_Y:
+                for i,(label,action) in enumerate(buttons):
+                    if button_rect(i).collidepoint(event.pos):
+                        do_action(action)
+                continue
 
             if pygame.Rect(col_x(0), TOP_Y,CARD_W,CARD_H).collidepoint(event.pos):
                 stock_drawing()
@@ -299,9 +390,13 @@ while running:
                         selected=None
                 else:
                     selected=None
+    if message_timer>0:
+        message_timer-=1
     if won_game():
         won=True
     draw_table()
+    draw_bar()
+
     pygame.display.flip()
     clock.tick(60)
 pygame.quit()

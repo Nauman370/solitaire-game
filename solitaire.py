@@ -51,12 +51,19 @@ def card_moving(src,index,dest):
 history=[]
 
 def save_screen():
-    history.append(copy.deepcopy(tableu,stock,waste,waste_sel,foundations,selected,won))
+    history.append(copy.deepcopy((tableu,stock,waste,foundations)))
 def undo():
+    global tableu,stock,waste,waste_sel,foundations,selected,won
+    if history:
+        tableu,stock,waste,foundations=history.pop()
+        selected=None
+        waste_sel=False
+        won=False
 def new_game():
     global tableu,waste,foundations,selected,waste_sel,won,stock
     deck=deck_cards()
     random.shuffle(deck)
+    history.clear()
     tableu=[[] for _ in range(7)]
     for i in range(7):
         for _ in range(i+1):
@@ -131,6 +138,9 @@ def won_game():
     return all(len(p)==13 for p in foundations)
 
 def stock_drawing():
+    if not stock and not waste:
+        return
+    save_screen()
     if stock:
         card=stock.pop()
         card.face_up=True
@@ -228,6 +238,8 @@ while running:
     for event in pygame.event.get():
         if event.type==pygame.KEYDOWN and event.key==pygame.K_n:
             new_game()
+        if event.type==pygame.KEYDOWN and event.key==pygame.K_z:
+            undo()
         if event.type ==pygame.QUIT:
             running=False
         if event.type==pygame.MOUSEBUTTONDOWN and event.button==1:
@@ -245,11 +257,13 @@ while running:
             f=foundation_at(event.pos)
             if f is not None:
                 if waste_sel and plac_on_foundations(waste[-1],foundations[f]):
+                    save_screen()
                     foundations[f].append(waste.pop())
                     waste_sel=False
                     continue
                 if selected is not None:
                     src_col,src_index=selected
+                    save_screen()
                     if src_index==len(tableu[src_col])-1 and plac_on_foundations(tableu[src_col][src_index],foundations[f]):
                         card_moving(tableu[src_col], src_index,foundations[f])
                         selected=None
@@ -260,6 +274,7 @@ while running:
 
             target=column_at(event.pos)
             if waste_sel and target is not None and place_on_tableu(waste[-1],tableu[target]):
+                save_screen()
                 tableu[target].append(waste.pop())
                 waste_sel=False
                 continue
@@ -269,6 +284,7 @@ while running:
                 src_col,src_index=selected
                 moving_card=tableu[src_col][src_index]
                 if place_on_tableu(moving_card,tableu[target]):
+                    save_screen()
                     card_moving(tableu[src_col],src_index,tableu[target])
                     selected=None
                     moved=True

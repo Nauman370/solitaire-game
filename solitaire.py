@@ -1,5 +1,6 @@
 import random
 import pygame
+import copy
 Type=["Diamond","Hearts","Clubs","Spades"]
 Ranks=list(range(1,14))
 
@@ -47,27 +48,27 @@ def card_moving(src,index,dest):
     dest.extend(cards)
     if src and not src[-1].face_up:
         src[-1].face_up=True
+history=[]
 
-deck=deck_cards()
-random.shuffle(deck)
-print(len(deck))
-print (deck[:5])
-
-tableu=[[]for _ in range(7)]
-for i in range(7):
-    for _ in range(i+1):
-        tableu[i].append(deck.pop())
-    tableu[i][-1].face_up=True
-stock=deck
-waste=[]
-foundations=[[],[],[],[]]
-
-
-for pile in foundations:
-    print(pile)
-print(len(stock))
-
-
+def save_screen():
+    history.append(copy.deepcopy(tableu,stock,waste,waste_sel,foundations,selected,won))
+def undo():
+def new_game():
+    global tableu,waste,foundations,selected,waste_sel,won,stock
+    deck=deck_cards()
+    random.shuffle(deck)
+    tableu=[[] for _ in range(7)]
+    for i in range(7):
+        for _ in range(i+1):
+            tableu[i].append(deck.pop())
+        tableu[i][-1].face_up=True
+    stock=deck
+    waste=[]
+    foundations=[[],[],[],[]]
+    selected=None
+    waste_sel=False
+    won=False
+new_game()
 
 
 
@@ -85,6 +86,7 @@ pygame.init()
 screen=pygame.display.set_mode((WIDTH,HEIGHT))
 pygame.display.set_caption("Solitaire")
 font=pygame.font.SysFont(None,30)
+win_font=pygame.font.SysFont(None,72)
 
 def col_x(col):
     return MARGIN + col*(CARD_W+GAP)
@@ -106,6 +108,7 @@ def tableu_hit(pos):
             if top<=my<=top+CARD_H:
                 return col,index
     return None
+
 def column_at(pos):
     mx,my=pos
     if my<TABLEU_Y:
@@ -114,6 +117,7 @@ def column_at(pos):
         if col_x(col)<=mx<=col_x(col)+CARD_W:
             return col
     return None
+
 def foundation_at(pos):
     mx,my=pos
     if not (TOP_Y<=my<=TOP_Y + CARD_H):
@@ -122,6 +126,10 @@ def foundation_at(pos):
         if col_x(3+i)<=mx<=col_x(3+i)+CARD_W:
             return i
     return None
+
+def won_game():
+    return all(len(p)==13 for p in foundations)
+
 def stock_drawing():
     if stock:
         card=stock.pop()
@@ -153,6 +161,7 @@ def draw_type(type,cx,cy,r,color):
 
             pygame.draw.circle(screen,color,(cx+dx,cy+dy),r//2)
         pygame.draw.polygon(screen,color,[(cx,cy),(cx-r//3,cy+r),(cx+r//3,cy+r)])
+
 def draw_card(card,x,y):
     rect=pygame.Rect(x,y,CARD_W,CARD_H)
     if card.face_up:
@@ -165,8 +174,10 @@ def draw_card(card,x,y):
     else:
         pygame.draw.rect(screen,(40,70,160),rect,border_radius=8)
         pygame.draw.rect(screen,(230,230,240),rect.inflate(-14,-14),2,border_radius=6)
+
 def draw_slot(x,y):
     pygame.draw.rect(screen,(18,85,45),(x,y,CARD_W,CARD_H),2,border_radius=8)
+
 def draw_table():
     screen.fill((20,110,60))
     if stock:
@@ -200,11 +211,23 @@ def draw_table():
         for i in range(index,len(pile)):
             pygame.draw.rect(screen,(255,215,0), (col_x(col),card_y(pile,i),CARD_W,CARD_H) , 3,border_radius=8)
     if waste_sel and waste:
-        pygame.draw.rect(screen,(255,215,0),(col_x(1),TOP_Y,CARD_W,CARD_H),3,border_radius=8)  
+        pygame.draw.rect(screen,(255,215,0),(col_x(1),TOP_Y,CARD_W,CARD_H),3,border_radius=8)
+
+    if won:
+        overlay=pygame.Surface((WIDTH,HEIGHT))
+        overlay.set_alpha(150)
+        overlay.fill((0,0,0))
+        screen.blit(overlay,(0,0))
+        text=win_font.render("You win :)",True,(255,215,0))
+        screen.blit(text,(WIDTH//2-text.get_width()//2,HEIGHT//2-60))
+        hint=font.render("For a New game, Press N",True,(255,255,200))
+        screen.blit(hint,(WIDTH//2-hint.get_width()//2,HEIGHT//2+10))
 clock=pygame.time.Clock()
 running=True
 while running:
     for event in pygame.event.get():
+        if event.type==pygame.KEYDOWN and event.key==pygame.K_n:
+            new_game()
         if event.type ==pygame.QUIT:
             running=False
         if event.type==pygame.MOUSEBUTTONDOWN and event.button==1:
@@ -260,6 +283,8 @@ while running:
                         selected=None
                 else:
                     selected=None
+    if won_game():
+        won=True
     draw_table()
     pygame.display.flip()
     clock.tick(60)

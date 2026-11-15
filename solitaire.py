@@ -10,6 +10,8 @@ Ranks=list(range(1,14))
 Save_file=os.path.join(os.path.expanduser("~"),"solitaire-save.json")
 scores_file=os.path.join(os.path.expanduser("~"), "solitaire-scores.json")
 PENALTY=10
+difficulty="normal"
+
 
 
 
@@ -34,7 +36,11 @@ class Cards:
         return rank_label(self.rank)+self.type[0].upper()
 def deck_cards():
     deck=[]
-    for type in Type:
+    if difficulty=="easy":
+        chosen=["Hearts","Spades","Hearts","Spades"]
+    else:
+        chosen=Type
+    for type in chosen:
         for rank in Ranks:
             deck.append(Cards(rank,type))
     return deck
@@ -57,8 +63,10 @@ def card_moving(src,index,dest):
     if src and not src[-1].face_up:
         src[-1].face_up=True
 history=[]
-
+moves=0
 def save_screen():
+    global moves
+    moves+=1
     history.append(copy.deepcopy((tableu,stock,waste,foundations)))
 def undo():
     global tableu,stock,waste,waste_sel,foundations,selected,won,penalty
@@ -69,7 +77,7 @@ def undo():
         penalty+=PENALTY
 def new_game():
     global tableu,waste,foundations,selected,waste_sel,won,stock
-    global start_time,penalty,final_time
+    global start_time,penalty,final_time,moves
     deck=deck_cards()
     random.shuffle(deck)
     history.clear()
@@ -86,6 +94,7 @@ def new_game():
     won=False
     start_time=time.time()
     penalty=0
+    moves=0
     final_time=None
 new_game()
 message=""
@@ -101,9 +110,14 @@ def passed_time():
     return int(time.time()-start_time) +penalty
 def fmt(seconds):
     return f"{seconds//60:02d}:{seconds%60:02d}"
+def score_path():
+    if difficulty=="easy":
+        return os.path.join(os.path.expanduser("~"),"solitaire-scores-easy.json")
+    return scores_file
+
 def load_scores():
     try:
-        with open(scores_file) as f:
+        with open (score_path()) as f:
             data=json.load(f)
         result=[]
         for item in data:
@@ -129,7 +143,7 @@ def add_score(seconds,name):
     scores.sort()
     scores=scores[:10]
     try:
-        with open(scores_file,"w")as f:
+        with open(score_path(),"w")as f:
             json.dump(scores,f)
     except OSError:
         pass
@@ -144,8 +158,15 @@ def finish_name():
     entering_name=False
     add_score(final_time,name)
 
-
-
+def switch_difficulty():
+    global difficulty,scores
+    difficulty="easy" if difficulty=="normal" else "normal"
+    scores=load_scores()
+    new_game()
+    if difficulty=="easy":
+        set_message("easy mode")
+    else:
+        set_message("Normal mode")
 def card_data(card):
     return[card.rank,card.type,card.face_up]
 def data_to_card(d):
@@ -166,6 +187,7 @@ def save_game():
         "stock": [card_data(c) for c in stock],
         "waste": [card_data(c) for c in waste],
         "foundations": [[card_data(c) for c in pile] for pile in foundations],
+        "difficulty": difficulty,
     }
 
     with open(Save_file,"w")as f:
@@ -173,7 +195,7 @@ def save_game():
     set_message("Game saved")
 def load_game():
     global tableu,stock,waste,foundations,selected,waste_sel,won
-    global start_time,penalty,final_time
+    global start_time,penalty,final_time,difficulty,scores
 
     try:
         with open(Save_file) as f:
@@ -184,6 +206,9 @@ def load_game():
         new_stock=[data_to_card(d)for d in data["stock"]]
         new_waste=[data_to_card(d)for d in data["waste"]]
         new_foundations=[[data_to_card(d)for d in pile]for pile in data["foundations"]]
+        new_difficulty=data.get("difficulty","normal")
+        if new_difficulty not in ("normal","easy"):
+            raise ValueError("no difficulty")
     except (OSError,IndexError,ValueError,KeyError,TypeError):
         set_message("No saves")
         return
@@ -194,6 +219,8 @@ def load_game():
     final_time=None
     start_time=time.time()-new_passed_time
     penalty=new_penalty
+    difficulty=new_difficulty
+    scores=load_scores()
     history.clear()
     set_message("game loaded")
 
@@ -217,11 +244,45 @@ small_font=pygame.font.SysFont(None,26)
 show_controls=True
 BAR_H=100
 BAR_Y=HEIGHT-BAR_H
-BTN_W,BTN_H=130,34
-buttons=[("Undo","undo"),("New game","new"),("Save","save"),("Load","load"),("Scores","scores")]
-KEYS={pygame.K_z:"undo",pygame.K_n:"new",pygame.K_s:"save",pygame.K_l:"load",pygame.K_b:"scores"}
+BTN_W,BTN_H=92,34
+buttons=[("Undo","undo"),("New game","new"),("Save","save"),("Load","load"),("Scores","scores"),("Mode","mode"),("Theme","theme")]
+KEYS={pygame.K_z:"undo",pygame.K_n:"new",pygame.K_s:"save",pygame.K_l:"load",pygame.K_b:"scores",pygame.K_m:"mode",pygame.K_t:"theme"}
 show_scores=False
 
+settings_file=os.path.join(os.path.expanduser("~"),"solitaire-settings.json")
+THEMES={
+    "Green":{"table":(20,110,60),"slot":(18,85,45),"back":(40,70,160)},
+    "Blue" :{"table":(25,75,120),"slot":(20,55,95),"back":(150,40,40)},
+    "Red"  :{"table":(120,30,40),"slot":(90,22,30),"back":(30,50,110)},
+    "Purple":{"table":(70,40,110),"slot":(52,30,85),"back":(200,150,40)},
+    "Night" :{"table":(25,28,38),"slot":(45,50,65),"back":(80,90,160)},
+    "Sand"  :{"table":(160,125,80),"slot":(130,100,60),"back":(120,40,40)},
+    "Teal"  :{"table":(20,100,105),"slot":(15,78,82),"back":(180,80,60)}
+}
+THEME_ORDER=list(THEMES)
+
+def load_theme():
+    try:
+        with open(settings_file)as f:
+            name=json.load(f)["theme"]
+        if name in THEMES:
+            return name
+    except (OSError,ValueError,TypeError,KeyError):
+        pass
+    return "Green"
+theme=load_theme()
+def save_theme():
+    try:
+        with open(settings_file,"w")as f:
+            json.dump({"theme":theme},f)
+    except OSError:
+        pass
+def next_theme():
+    global theme
+    i=THEME_ORDER.index(theme)
+    theme=THEME_ORDER[(i+1)%len(THEME_ORDER)]
+    save_theme()
+    set_message("Theme:"+theme)
 def col_x(col):
     return MARGIN + col*(CARD_W+GAP)
 def card_y(pile,index):
@@ -305,18 +366,20 @@ def draw_card(card,x,y):
         draw_type(card.type,x + CARD_W-18, y+18,9,color)
         draw_type(card.type,x +CARD_W//2,y+CARD_H//2+10,20,color)
     else:
-        pygame.draw.rect(screen,(40,70,160),rect,border_radius=8)
+        pygame.draw.rect(screen,THEMES[theme]["back"],rect,border_radius=8)
         pygame.draw.rect(screen,(230,230,240),rect.inflate(-14,-14),2,border_radius=6)
 
 def draw_slot(x,y):
-    pygame.draw.rect(screen,(18,85,45),(x,y,CARD_W,CARD_H),2,border_radius=8)
+    pygame.draw.rect(screen,THEMES[theme]["slot"] ,(x,y,CARD_W,CARD_H),2,border_radius=8)
 
 def button_rect(i):
-    return pygame.Rect(11+i*(BTN_W+12),BAR_Y+56,BTN_W,BTN_H)
+    return pygame.Rect(20+i*(BTN_W+6),BAR_Y+56,BTN_W,BTN_H)
 def do_action(action):
     global show_scores
     if action=="scores":
         show_scores=not show_scores
+    elif action=="theme":
+        next_theme()
     elif action=="undo":
         undo()
     elif action=="new":
@@ -325,6 +388,8 @@ def do_action(action):
         save_game()
     elif action=="load":
         load_game()
+    elif action=="mode":
+        switch_difficulty()
 def draw_bar():
     if not show_controls:
         return
@@ -332,19 +397,21 @@ def draw_bar():
     strip.set_alpha(190)
     strip.fill((0,0,0))
     screen.blit(strip,(0,BAR_Y))
-    line=small_font.render(" Z Undo(+10s) N new game  S save  L load  H Hide B scores "  ,True,(230,230,230))
+    line=small_font.render(" Z Undo(+10s) N new game  S save  L load  H Hide B scores  M mode  T theme"  ,True,(230,230,230))
     screen.blit(line,(WIDTH//2-line.get_width()//2,BAR_Y+10))
+    count=small_font.render("Moves:" +str(moves),True,(255,230,150))
+    screen.blit(count,(WIDTH//2-count.get_width()//2,BAR_Y+32))
     for i,(label,action)in enumerate(buttons):
         r=button_rect(i)
         hover=r.collidepoint(pygame.mouse.get_pos())
         pygame.draw.rect(screen,(70,120,90)if hover else(40,100,65),r,border_radius=8)
         pygame.draw.rect(screen,(230,230,240),r,2,border_radius=8)
-        text=font.render(label,True,(255,255,255))
+        text=small_font.render(label,True,(255,255,255))
         screen.blit(text,(r.centerx-text.get_width()//2,r.centery-text.get_height()//2))
 
 
 def draw_table():
-    screen.fill((20,110,60))
+    screen.fill(THEMES[theme]["table"])
     if stock:
         draw_card(stock[-1],col_x(0),TOP_Y)
     else:
@@ -390,10 +457,12 @@ def draw_table():
     label=small_font.render("TIME",True,(255,255,255))
     clock_text=font.render(fmt(passed_time()),True,(255,255,255))
     undos=small_font.render("undos:"+str(penalty//PENALTY),True,(255,230,210))
+    mode_text=small_font.render("Easy"if difficulty=="easy" else "Normal",True,(255,230,150))
     cx=col_x(2)+CARD_W//2
     screen.blit(label,(cx-label.get_width()//2,TOP_Y+26))
     screen.blit(clock_text,(cx-clock_text.get_width()//2,TOP_Y+48))
-    screen.blit(undos,(cx-undos.get_width()//2,TOP_Y+80))        
+    screen.blit(undos,(cx-undos.get_width()//2,TOP_Y+80))
+    screen.blit(mode_text,(cx-mode_text.get_width()//2,TOP_Y+100))     
     if message_timer>0:
         msg=font.render(message,True,(255,255,200))
         screen.blit(msg,(WIDTH//2-msg.get_width()//2,146))
@@ -409,7 +478,7 @@ def draw_name_entry():
     when=font.render("Your time: "+fmt(final_time),True,(255,255,255))
     screen.blit(when,(WIDTH//2-when.get_width()//2,280))
     prompt=small_font.render("Type your name",True,(200,200,200))
-    screen.blit(prompt,(WIDTH//2-when.get_width()//2,325))
+    screen.blit(prompt,(WIDTH//2-prompt.get_width()//2,325))
     pygame.draw.rect(screen,(255,255,255),(WIDTH//2-150,360,300,44),2,border_radius=8)
     cursor="-" if (pygame.time.get_ticks()//500)%2==0 else ""
     typed=font.render(name_text+cursor,True,(255,255,255))
@@ -457,9 +526,6 @@ while running:
                 show_controls=not show_controls
             elif event.key==pygame.K_F11:
                 pygame.display.toggle_fullscreen()
-            elif event.key==pygame.K_w:
-                for i,t in enumerate(Type):
-                    foundations[i]=[Cards(r,t) for r in Ranks]
         if event.type==pygame.MOUSEBUTTONDOWN and event.button==1:
             if show_scores:
                 show_scores=False

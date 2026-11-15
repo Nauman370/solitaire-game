@@ -106,8 +106,8 @@ def load_scores():
         with open(scores_file) as f:
             data=json.load(f)
         return[(int(t),str(d))for t,d in data]
-    except:
-        (OSError,ValueError,TypeError)
+    except (OSError,ValueError,TypeError):
+        
         return[]
 scores=load_scores()
 
@@ -143,7 +143,7 @@ def save_game():
         return
 
     data = {
-        "elapsed": int(time.time()-start_time),
+        "passed_time": int(time.time()-start_time),
         "penalty": penalty,
         "tableu": [[card_data(c) for c in pile] for pile in tableu],
         "stock": [card_data(c) for c in stock],
@@ -203,6 +203,7 @@ BAR_Y=HEIGHT-BAR_H
 BTN_W,BTN_H=130,34
 buttons=[("Undo","undo"),("New game","new"),("Save","save"),("Load","load"),("Scores","scores")]
 KEYS={pygame.K_z:"undo",pygame.K_n:"new",pygame.K_s:"save",pygame.K_l:"load",pygame.K_b:"scores"}
+show_scores=False
 
 def col_x(col):
     return MARGIN + col*(CARD_W+GAP)
@@ -379,7 +380,22 @@ def draw_table():
     if message_timer>0:
         msg=font.render(message,True,(255,255,200))
         screen.blit(msg,(WIDTH//2-msg.get_width()//2,146))
-
+def draw_scores():
+    if not show_scores:
+        return
+    overlay=pygame.Surface((WIDTH,HEIGHT))
+    overlay.set_alpha(220)
+    overlay.fill((0,0,0))
+    title=win_font.render("Best times",True,(255,210,0))
+    screen.blit(title,(WIDTH//2-title.get_width()//2,70))
+    if not scores:
+        empty=font.render("No wins yet",True,(230,230,230))
+        screen.blit(empty,(WIDTH//2-empty.get_width()//2,200))
+    for i,(seconds,day)in enumerate(scores):
+        row=font.render(str(i+1)+"   "+fmt(seconds)+"   "+day,True,(255,255,255))
+        screen.blit(row,(WIDTH//2-140,160+i*38))
+    hint=small_font.render("Press B or click anywhere to close",True,(200,200,200))
+    screen.blit(hint,(WIDTH//2-hint.get_width()//2,HEIGHT-60))
 clock=pygame.time.Clock()
 running=True
 while running:
@@ -393,6 +409,9 @@ while running:
                 pygame.display.toggle_fullscreen()
         if event.type ==pygame.QUIT:
             running=False
+        if show_scores:
+            show_scores=False
+            continue
         if event.type==pygame.MOUSEBUTTONDOWN and event.button==1:
             if show_controls and event.pos[1]>= BAR_Y:
                 for i,(label,action) in enumerate(buttons):
@@ -419,8 +438,8 @@ while running:
                     continue
                 if selected is not None:
                     src_col,src_index=selected
-                    save_screen()
                     if src_index==len(tableu[src_col])-1 and plac_on_foundations(tableu[src_col][src_index],foundations[f]):
+                        save_screen()
                         card_moving(tableu[src_col], src_index,foundations[f])
                         selected=None
                         continue
@@ -457,10 +476,13 @@ while running:
                     selected=None
     if message_timer>0:
         message_timer-=1
-    if won_game():
+    if won_game() and not won:
         won=True
+        final_time=passed_time()
+        add_score(final_time)
     draw_table()
     draw_bar()
+    draw_scores()
 
     pygame.display.flip()
     clock.tick(60)

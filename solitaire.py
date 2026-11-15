@@ -195,7 +195,7 @@ def save_game():
     set_message("Game saved")
 def load_game():
     global tableu,stock,waste,foundations,selected,waste_sel,won
-    global start_time,penalty,final_time,difficulty,scores
+    global start_time,penalty,final_time,difficulty,scores,moves
 
     try:
         with open(Save_file) as f:
@@ -219,6 +219,7 @@ def load_game():
     final_time=None
     start_time=time.time()-new_passed_time
     penalty=new_penalty
+    moves=0
     difficulty=new_difficulty
     scores=load_scores()
     history.clear()

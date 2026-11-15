@@ -105,15 +105,26 @@ def load_scores():
     try:
         with open(scores_file) as f:
             data=json.load(f)
-        return[(int(t),str(d))for t,d in data]
+        result=[]
+        for item in data:
+            if len(item)==2:
+                result.append((int(item[0]),"Player",str(item[1])))
+            else:
+                result.append((int(item[0]),str(item[1]),str(item[2])))
+        result.sort()
+        return result[:10]
     except (OSError,ValueError,TypeError):
-
         return[]
 scores=load_scores()
+entering_name=False
+name_text=""
+last_name=""
 
-def add_score(seconds):
+def qualifies(seconds):
+    return len(scores)<10 or seconds<scores[-1][0]
+def add_score(seconds,name):
     global scores
-    entry=(seconds,date.today().isoformat())
+    entry=(seconds,name,date.today().isoformat())
     scores.append(entry)
     scores.sort()
     scores=scores[:10]
@@ -122,10 +133,16 @@ def add_score(seconds):
             json.dump(scores,f)
     except OSError:
         pass
-    if entry  in scores:
-        set_message("New #"+str(scores.index(entry)+1)+"On the leaderboard")
+    if entry in scores:
+        set_message("New #"+str(scores.index(entry)+1)+"on the leaderboard")
     else:
-        set_message("Not in top 10 scores")
+        set_message("Score not in  Top 10")
+def finish_name():
+    global entering_name, last_name
+    name=name_text.strip() or "Player"
+    last_name=name
+    entering_name=False
+    add_score(final_time,name)
 
 
 
@@ -380,6 +397,26 @@ def draw_table():
     if message_timer>0:
         msg=font.render(message,True,(255,255,200))
         screen.blit(msg,(WIDTH//2-msg.get_width()//2,146))
+def draw_name_entry():
+    if not entering_name:
+        return
+    overlay=pygame.Surface((WIDTH,HEIGHT))
+    overlay.set_alpha(220)
+    overlay.fill((0,0,0))
+    screen.blit(overlay,(0,0))
+    title=win_font.render("New Highscore",True,(255,215,0))
+    screen.blit(title,(WIDTH//2-title.get_width()//2,200))
+    when=font.render("Your time: "+fmt(final_time),True,(255,255,255))
+    screen.blit(when,(WIDTH//2-when.get_width()//2,280))
+    prompt=small_font.render("Type your name",True,(200,200,200))
+    screen.blit(prompt,(WIDTH//2-when.get_width()//2,325))
+    pygame.draw.rect(screen,(255,255,255),(WIDTH//2-150,360,300,44),2,border_radius=8)
+    cursor="-" if (pygame.time.get_ticks()//500)%2==0 else ""
+    typed=font.render(name_text+cursor,True,(255,255,255))
+    screen.blit(typed,(WIDTH//2-140,370))
+
+
+
 def draw_scores():
     if not show_scores:
         return
@@ -392,15 +429,27 @@ def draw_scores():
     if not scores:
         empty=font.render("No wins yet",True,(230,230,230))
         screen.blit(empty,(WIDTH//2-empty.get_width()//2,200))
-    for i,(seconds,day)in enumerate(scores):
-        row=font.render(str(i+1)+"   "+fmt(seconds)+"   "+day,True,(255,255,255))
-        screen.blit(row,(WIDTH//2-140,160+i*38))
-    hint=small_font.render("Press B or click anywhere to close",True,(200,200,200))
-    screen.blit(hint,(WIDTH//2-hint.get_width()//2,HEIGHT-60))
+    for i,(seconds,name,day)in enumerate(scores):
+        y=160+i*38
+        screen.blit(font.render(str(i+1)+".",True,(255,255,255)),(110,y))
+        screen.blit(font.render(fmt(seconds),True,(255,255,255)),(160,y))
+        screen.blit(font.render(name,True,(255,255,255)),(260,y))
+        screen.blit(font.render(day,True,(200,200,200)),(480,y))
 clock=pygame.time.Clock()
 running=True
 while running:
     for event in pygame.event.get():
+        if event.type==pygame.QUIT:
+            running=False
+        if entering_name:
+                if event.type==pygame.KEYDOWN:
+                    if event.key==pygame.K_RETURN:
+                        finish_name()
+                    elif event.key==pygame.K_BACKSPACE:
+                        name_text=name_text[:-1]
+                    elif event.unicode and event.unicode.isprintable() and len(name_text)<12:
+                        name_text+=event.unicode
+                continue
         if event.type==pygame.KEYDOWN:
             if event.key in KEYS:
                 do_action(KEYS[event.key])
@@ -408,8 +457,9 @@ while running:
                 show_controls=not show_controls
             elif event.key==pygame.K_F11:
                 pygame.display.toggle_fullscreen()
-        if event.type ==pygame.QUIT:
-            running=False
+            elif event.key==pygame.K_w:
+                for i,t in enumerate(Type):
+                    foundations[i]=[Cards(r,t) for r in Ranks]
         if event.type==pygame.MOUSEBUTTONDOWN and event.button==1:
             if show_scores:
                 show_scores=False
@@ -480,13 +530,21 @@ while running:
     if won_game() and not won:
         won=True
         final_time=passed_time()
-        add_score(final_time)
+        if qualifies(final_time):
+            entering_name=True
+            name_text=last_name
+            show_scores=False
+        else:
+            set_message("Not in top 10")
     draw_table()
     draw_bar()
     draw_scores()
-
+    draw_name_entry()
     pygame.display.flip()
     clock.tick(60)
+if entering_name:
+        finish_name()
+
 pygame.quit()
 
 

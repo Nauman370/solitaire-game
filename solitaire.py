@@ -107,7 +107,7 @@ def load_scores():
             data=json.load(f)
         return[(int(t),str(d))for t,d in data]
     except (OSError,ValueError,TypeError):
-        
+
         return[]
 scores=load_scores()
 
@@ -315,7 +315,7 @@ def draw_bar():
     strip.set_alpha(190)
     strip.fill((0,0,0))
     screen.blit(strip,(0,BAR_Y))
-    line=small_font.render("Press Z for Undo(+10s)  Press N for new game  Press S to save  Press L to load  H to make this box go away"  ,True,(230,230,230))
+    line=small_font.render(" Z Undo(+10s) N new game  S save  L load  H Hide B scores "  ,True,(230,230,230))
     screen.blit(line,(WIDTH//2-line.get_width()//2,BAR_Y+10))
     for i,(label,action)in enumerate(buttons):
         r=button_rect(i)
@@ -409,10 +409,10 @@ while running:
                 pygame.display.toggle_fullscreen()
         if event.type ==pygame.QUIT:
             running=False
-        if show_scores:
-            show_scores=False
-            continue
         if event.type==pygame.MOUSEBUTTONDOWN and event.button==1:
+            if show_scores:
+                show_scores=False
+                continue
             if show_controls and event.pos[1]>= BAR_Y:
                 for i,(label,action) in enumerate(buttons):
                     if button_rect(i).collidepoint(event.pos):

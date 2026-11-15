@@ -1,4 +1,5 @@
 from datetime import date
+import time
 import random
 import os
 import json
@@ -7,6 +8,8 @@ import copy
 Type=["Diamond","Hearts","Clubs","Spades"]
 Ranks=list(range(1,14))
 Save_file=os.path.join(os.path.expanduser("~"),"solitaire-save.json")
+scores_file=os.path.join(os.path.expanduser("~"), "solitaire-scores.json")
+PENALTY=10
 
 
 
@@ -58,14 +61,15 @@ history=[]
 def save_screen():
     history.append(copy.deepcopy((tableu,stock,waste,foundations)))
 def undo():
-    global tableu,stock,waste,waste_sel,foundations,selected,won
-    if history:
+    global tableu,stock,waste,waste_sel,foundations,selected,won,penalty
+    if history and not won:
         tableu,stock,waste,foundations=history.pop()
         selected=None
         waste_sel=False
-        won=False
+        penalty+=PENALTY
 def new_game():
     global tableu,waste,foundations,selected,waste_sel,won,stock
+    global start_time,penalty,final_time
     deck=deck_cards()
     random.shuffle(deck)
     history.clear()
@@ -80,6 +84,9 @@ def new_game():
     selected=None
     waste_sel=False
     won=False
+    start_time=time.time()
+    penalty=0
+    final_time=None
 new_game()
 message=""
 message_timer=0
@@ -87,6 +94,40 @@ def set_message(text):
     global message, message_timer
     message= text
     message_timer=120
+
+def passed_time():
+    if final_time is not None:
+        return final_time
+    return int(time.time()-start_time) +penalty
+def fmt(seconds):
+    return f"{seconds//60:02d}:{seconds%60:02d}"
+def load_scores():
+    try:
+        with open(scores_file) as f:
+            data=json.load(f)
+        return[(int(t),str(d))for t,d in data]
+    except:
+        (OSError,ValueError,TypeError)
+        return[]
+scores=load_scores()
+
+def add_score(seconds):
+    global scores
+    entry=(seconds,date.today().isoformat())
+    scores.append(entry)
+    scores.sort()
+    scores=scores[:10]
+    try:
+        with open(scores_file,"w")as f:
+            json.dump(scores,f)
+    except OSError:
+        pass
+    if entry  in scores:
+        set_message("New #"+str(scores.index(entry)+1)+"On the leaderboard")
+    else:
+        set_message("Not in top 10 scores")
+
+
 
 def card_data(card):
     return[card.rank,card.type,card.face_up]
@@ -96,7 +137,14 @@ def data_to_card(d):
     return card
 
 def save_game():
+
+    if won:
+        set_message("Storing a won game twice is not allowed")
+        return
+
     data = {
+        "elapsed": int(time.time()-start_time),
+        "penalty": penalty,
         "tableu": [[card_data(c) for c in pile] for pile in tableu],
         "stock": [card_data(c) for c in stock],
         "waste": [card_data(c) for c in waste],
@@ -108,9 +156,13 @@ def save_game():
     set_message("Game saved")
 def load_game():
     global tableu,stock,waste,foundations,selected,waste_sel,won
+    global start_time,penalty,final_time
+
     try:
         with open(Save_file) as f:
             data=json.load(f)
+        new_passed_time=int(data.get("passed_time",0))
+        new_penalty=int(data.get("penalty",0))
         new_tableu=[[data_to_card(d)for d in pile]for pile in data["tableu"]]
         new_stock=[data_to_card(d)for d in data["stock"]]
         new_waste=[data_to_card(d)for d in data["waste"]]
@@ -122,6 +174,9 @@ def load_game():
     selected=None
     waste_sel=False
     won=False
+    final_time=None
+    start_time=time.time()-new_passed_time
+    penalty=new_penalty
     history.clear()
     set_message("game loaded")
 
@@ -145,9 +200,9 @@ small_font=pygame.font.SysFont(None,26)
 show_controls=True
 BAR_H=100
 BAR_Y=HEIGHT-BAR_H
-BTN_W,BTN_H=150,34
-buttons=[("Undo","undo"),("New game","new",),("Save","save"),("Load","load")]
-KEYS={pygame.K_z:"undo",pygame.K_n:"new",pygame.K_s:"save",pygame.K_l:"load"}
+BTN_W,BTN_H=130,34
+buttons=[("Undo","undo"),("New game","new"),("Save","save"),("Load","load"),("Scores","scores")]
+KEYS={pygame.K_z:"undo",pygame.K_n:"new",pygame.K_s:"save",pygame.K_l:"load",pygame.K_b:"scores"}
 
 def col_x(col):
     return MARGIN + col*(CARD_W+GAP)
@@ -239,9 +294,12 @@ def draw_slot(x,y):
     pygame.draw.rect(screen,(18,85,45),(x,y,CARD_W,CARD_H),2,border_radius=8)
 
 def button_rect(i):
-    return pygame.Rect(30+i*(BTN_W+20),BAR_Y+56,BTN_W,BTN_H)
+    return pygame.Rect(11+i*(BTN_W+12),BAR_Y+56,BTN_W,BTN_H)
 def do_action(action):
-    if action=="undo":
+    global show_scores
+    if action=="scores":
+        show_scores=not show_scores
+    elif action=="undo":
         undo()
     elif action=="new":
         new_game()
@@ -256,7 +314,7 @@ def draw_bar():
     strip.set_alpha(190)
     strip.fill((0,0,0))
     screen.blit(strip,(0,BAR_Y))
-    line=small_font.render("Press Z for Undo  Press N for new game  Press S to save  Press L to load H to make this box go away",True,(230,230,230))
+    line=small_font.render("Press Z for Undo(+10s)  Press N for new game  Press S to save  Press L to load  H to make this box go away"  ,True,(230,230,230))
     screen.blit(line,(WIDTH//2-line.get_width()//2,BAR_Y+10))
     for i,(label,action)in enumerate(buttons):
         r=button_rect(i)
@@ -311,6 +369,13 @@ def draw_table():
         screen.blit(text,(WIDTH//2-text.get_width()//2,HEIGHT//2-60))
         hint=font.render("For a New game, Press N",True,(255,255,200))
         screen.blit(hint,(WIDTH//2-hint.get_width()//2,HEIGHT//2+10))
+    label=small_font.render("TIME",True,(255,255,255))
+    clock_text=font.render(fmt(passed_time()),True,(255,255,255))
+    undos=small_font.render("undos:"+str(penalty//PENALTY),True,(255,230,210))
+    cx=col_x(2)+CARD_W//2
+    screen.blit(label,(cx-label.get_width()//2,TOP_Y+26))
+    screen.blit(clock_text,(cx-clock_text.get_width()//2,TOP_Y+48))
+    screen.blit(undos,(cx-undos.get_width()//2,TOP_Y+80))        
     if message_timer>0:
         msg=font.render(message,True,(255,255,200))
         screen.blit(msg,(WIDTH//2-msg.get_width()//2,146))

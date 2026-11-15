@@ -386,6 +386,7 @@ def draw_scores():
     overlay=pygame.Surface((WIDTH,HEIGHT))
     overlay.set_alpha(220)
     overlay.fill((0,0,0))
+    screen.blit(overlay,(0,0))
     title=win_font.render("Best times",True,(255,210,0))
     screen.blit(title,(WIDTH//2-title.get_width()//2,70))
     if not scores:

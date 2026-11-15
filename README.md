@@ -1,3 +1,4 @@
+<img width="1366" height="768" alt="Screenshot 2026-11-15 191242" src="https://github.com/user-attachments/assets/8916795b-0170-4cb8-b992-749314f5ded4" />
 # Solitaire
 
 A Klondike Solitaire game.
